@@ -1,0 +1,56 @@
+name: Build Mr Malhotra APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find project ZIP
+        run: |
+          ZIP=$(find . -maxdepth 2 -name "Mr_Malhotra_Android_Source_Project_with_Build_Workflow.zip" | head -n 1)
+          if [ -z "$ZIP" ]; then
+            echo "Project ZIP not found. Please upload the Android project ZIP to the repository."
+            exit 1
+          fi
+          mkdir source
+          unzip -q "$ZIP" -d source
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Build APK
+        run: |
+          PROJECT=$(find source -name settings.gradle -o -name settings.gradle.kts | head -n 1)
+          if [ -z "$PROJECT" ]; then
+            echo "Gradle project not found inside ZIP."
+            exit 1
+          fi
+          cd "$(dirname "$PROJECT")"
+          gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mr-Malhotra-APK
+          path: source/**/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
